@@ -1,6 +1,6 @@
-const { response } = require("express")
 
-const token = ''
+const { token } = require('./secrets')
+
 const botUri = `https://api.telegram.org/bot${token}`
 
 const main = async () => {
