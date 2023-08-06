@@ -37,9 +37,10 @@ const main = async () => {
 				offset = updates.slice().pop()?.update_id ?? offset
 		
 				// clears currently fetched updates
-				if (offset)
+				if (updates.length > 0) {
 					console.debug('Clears currently fetched updates')
 					await fetchUpdates(offset + 1, 1)
+				}
 		
 				return updates
 			})
