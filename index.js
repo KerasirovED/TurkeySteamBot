@@ -20,9 +20,16 @@ const main = async () => {
 			if (limit)
 				params.push("?limit=" + limit)
 
-			return await fetch(botUri + "/getUpdates" + params.join('&'))
+			const getUpdatesUri = botUri + "/getUpdates" + params.join('&')
+
+			console.debug(`Request: '${getUpdatesUri}'`)
+
+			return await fetch(getUpdatesUri)
 				.then(result => result.json())
-				.then(data => data.result)
+				.then(data => {
+					console.debug(`Received:\n${JSON.stringify(data, null, 4)}`)
+					return data.result
+				})
 		}
 		
 		return await fetchUpdates()
@@ -31,6 +38,7 @@ const main = async () => {
 		
 				// clears currently fetched updates
 				if (offset)
+					console.debug('Clears currently fetched updates')
 					await fetchUpdates(offset + 1, 1)
 		
 				return updates
@@ -38,7 +46,8 @@ const main = async () => {
 	}
 
 	const sendMessage = async (chatId, text) => {
-		return await fetch(botUri + '/sendMessage', { 
+		const uri = botUri + '/sendMessage'
+		const requestInfo = { 
 			method: 'POST',
 			headers: {
 				"Content-Type": "application/json" 
@@ -47,14 +56,39 @@ const main = async () => {
 				chat_id: chatId,
 				text: text
 			})
-		})
-		.then(response => response.json())
+		}
+
+		console.debug(`Request: '${uri}'`)
+		console.debug(`requestInfo:\n'${JSON.stringify(requestInfo, null, 4)}'`)
+
+		return await fetch(uri, requestInfo)
+			.then(response => {
+				const json = response.json() 
+				console.debug(`Received:\n${JSON.stringify(json, null, 4)}`)
+				return json
+			})
 	}
 
-	await getUpdates()
-		.then(updates => updates.forEach(async update => {
-			await sendMessage(update.message.chat.id, JSON.stringify(update, null, 4))
-		}))
+	const delay = 5000
+
+	const polling = () => setTimeout(async () => {
+		console.debug('Getting updates...')
+
+		await getUpdates()
+			.then(updates => {
+				console.debug('Received:\n' + updates)
+
+				updates.forEach(async update => {
+					await sendMessage(update.message.chat.id, JSON.stringify(update, null, 4))
+			})})
+
+		console.debug('Updates have got!')
+
+		polling()
+	}, delay)
+
+	console.debug('Polling starged')
+	polling()
 }
 
 main()
