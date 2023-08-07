@@ -5,26 +5,14 @@ const { Bot } = require('./Bot')
 const main = async () => {
     const bot = new Bot(token)
 
-	const delay = 5000
+    bot.registerCommand('start', async (message) => {
+        await bot.sendMessage(message.chat.id, "Это страт!!!")
+    })
 
-	const polling = () => setTimeout(async () => {
-		console.debug('Getting updates...')
-        
-        await bot.getUpdates()
-            .then(updates => {
-                updates = updates.filter(update => update.message)
-
-                updates.forEach(async update => {
-                    await bot.sendMessage(update.message.chat.id, JSON.stringify(update, null, 4))
-            })})
-
-        console.debug('Updates have got!')
-
-		polling()
-	}, delay)
+    bot.registerText((message) => bot.sendMessage(message.chat.id, JSON.stringify(message, null, 4)))
 
 	console.debug('Polling started')
-	polling()
+	bot.startPolling()
 }
 
 main()
