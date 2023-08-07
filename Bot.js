@@ -72,11 +72,11 @@ class Bot {
             updates.filter(update => update?.message?.entities?.map(entity => entity.type).includes('bot_command'))
 
         commands.forEach(command => 
-            this.commandCallbacks.find(x => x.command === command.message.text.substring(1)).callback(command.message))
+            this.commandCallbacks.find(x => x.command === command.message.text.substring(1)).callback(this.appendReply(command.message)))
 
         if (this.textCallback) {
             const texts = updates.filter(update => update?.message?.entities === undefined && update?.message?.text !== undefined)
-            texts.forEach(text => this.textCallback(text.message))
+            texts.forEach(text => this.textCallback(this.appendReply(text.message)))
         }
     }
 
@@ -127,6 +127,11 @@ class Bot {
         }, delay)
 
         polling()
+    }
+
+    appendReply(message) {
+        message.reply = async text => await this.sendMessage(message.chat.id, text)
+        return message
     }
 }
 
