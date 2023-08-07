@@ -1,7 +1,7 @@
 
 const { token } = require('./secrets')
 const { Bot } = require('./Bot')
-const { Regions, getPirce, gameInfo } = require('./SteamApi')
+const { Regions, getPirce, gameInfo, allGames } = require('./SteamApi')
 
 const main = async () => {
     const bot = new Bot(token)
@@ -11,25 +11,35 @@ const main = async () => {
     })
 
     bot.registerText(async (message) => {
-        appId = Number(message.text)
+        const replyPrices = async appid => {
+            await gameInfo(appid).then(async game => {
+                if (!game) {
+                    await message.reply(`Игрулю с Steam App ID '${appid}' не нашел, увы`)
+                    return
+                }
 
-        if (isNaN(appId)) {
-            await message.reply(`Опа, '${message.text}' оказался не Steam AppID`)
-            return
-        }
-
-        await gameInfo(appId).then(async game => {
-            if (!game) {
-                await message.reply(`Игрулю с Steam AppID '${appId}' не нашел, увы`)
-                return
-            }
-
-            await getPirce(appId, Regions.Turkey).then(async lira => {
-                await getPirce(appId, Regions.Euro).then(async eur => {
-                    await message.reply(`Прайсы на ${game.name}:\nЛира: ${lira.final_formatted}\nЕвро: ${eur.final_formatted}`)
+                await getPirce(appid, Regions.Turkey).then(async lira => {
+                    await getPirce(appid, Regions.Euro).then(async eur => {
+                        await message.reply(`Прайсы на ${game.name}:\nЛира: ${lira?.final_formatted}\nЕвро: ${eur?.final_formatted}`)
+                    })
                 })
             })
-        })
+        }
+
+        appid = Number(message.text)
+
+        if (isNaN(appid) == false) 
+            await replyPrices(appid)
+        else {
+            await allGames()
+                .then(games => games.find(game => game.name === message.text))
+                .then(async game => {
+                    if (game)
+                        await replyPrices(game.appid)
+                    else
+                        await message.reply(`Слушай, ну я пытался найти по '${message.text}' хоть что-то, но ничерта`)
+                })
+        }    
     })
 
 	console.debug('Polling started')
