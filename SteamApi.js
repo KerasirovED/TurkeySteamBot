@@ -15,7 +15,7 @@ const gameInfo = async (appid) => {
 }
 
 const fetchAllGames = async () => {
-    const uri = 'http://api.steampowered.com/ISteamApps/GetAppList/v0002/?format=json'
+    const uri = 'https://api.steampowered.com/ISteamApps/GetAppList/v2'
     return await fetch(uri).then(response => response.json()).then(data => {
         console.debug(data)
         return data?.applist?.apps
