@@ -43,17 +43,24 @@ class Bot {
             })
 	}
 
-	async sendMessage(chatId, text) {
+	async sendMessage(chatId, text, parseMode) {
 		const uri = this.botUri + '/sendMessage'
+
+        let body = {
+            chat_id: chatId,
+            text: text,
+            disable_web_page_preview: true
+        }
+
+        if (parseMode)
+            body.parse_mode = parseMode
+
 		const requestInfo = { 
 			method: 'POST',
 			headers: {
 				"Content-Type": "application/json" 
 			},
-			body: JSON.stringify({
-				chat_id: chatId,
-				text: text
-			})
+			body: JSON.stringify(body)
 		}
 
 		console.debug(`Request: '${uri}'`)
@@ -130,11 +137,18 @@ class Bot {
     }
 
     appendReply(message) {
-        message.reply = async text => await this.sendMessage(message.chat.id, text)
+        message.reply = async (text, parseMode) => await this.sendMessage(message.chat.id, text, parseMode)
         return message
     }
 }
 
+const ParseMode = {
+    MarkdownV2 : 'MarkdownV2',
+    HTML: 'HTML',
+    Markdown: 'Markdown'
+}
+
 module.exports = {
-    Bot: Bot
+    Bot: Bot,
+    ParseMode: ParseMode
 }

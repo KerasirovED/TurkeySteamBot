@@ -1,6 +1,6 @@
 
 const { token } = require('./secrets')
-const { Bot } = require('./Bot')
+const { Bot, ParseMode } = require('./TelegramApi')
 const { Regions, getPirce, gameInfo, allGames } = require('./SteamApi')
 
 const main = async () => {
@@ -18,9 +18,13 @@ const main = async () => {
                     return
                 }
 
+                linkedName = `[${game.name}](https://store.steampowered.com/app/${appid})`
+
                 await getPirce(appid, Regions.Turkey).then(async lira => {
                     await getPirce(appid, Regions.Euro).then(async eur => {
-                        await message.reply(`Прайсы на ${game.name}:\nЛира: ${lira?.final_formatted}\nЕвро: ${eur?.final_formatted}`)
+                        await message.reply(`Прайсы на ${linkedName}:\nЛира: ${lira?.final_formatted}\nЕвро: ${eur?.final_formatted}`, ParseMode.MarkdownV2)
+                    }).catch(async () => {
+                        await message.reply('Походу, форматирование Markdown V2 нас нагнуло.')
                     })
                 })
             })
