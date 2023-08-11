@@ -1,5 +1,5 @@
 
-class Bot {
+export class Bot {
     constructor(token) {
         this.token = token
         this.botUri = `https://api.telegram.org/bot${token}`
@@ -71,19 +71,23 @@ class Bot {
 				const json = response.json() 
 				console.debug(`Received:\n${JSON.stringify(json, null, 4)}`)
 				return json
-			})
+			}, _ => console.debug('Промис в sendMessage нагнули!'))
+            .catch(reason => console.debug('sendMessage поймал ошибку' + reason))
 	}
 
-    processUpdates(updates) {
+    async processUpdates(updates) {
         const commands = 
             updates.filter(update => update?.message?.entities?.map(entity => entity.type).includes('bot_command'))
 
-        commands.forEach(command => 
-            this.commandCallbacks.find(x => x.command === command.message.text.substring(1)).callback(this.appendReply(command.message)))
+        await Promise.all(
+            commands.map(async command => 
+                await this.commandCallbacks.find(x => x.command === command.message.text.substring(1))
+                    ?.callback(this.appendReply(command.message)))
+        )
 
         if (this.textCallback) {
             const texts = updates.filter(update => update?.message?.entities === undefined && update?.message?.text !== undefined)
-            texts.forEach(text => this.textCallback(this.appendReply(text.message)))
+            await Promise.all(texts.map(async text => await this.textCallback(this.appendReply(text.message))))
         }
     }
 
@@ -118,6 +122,7 @@ class Bot {
 
     textCallback = undefined
     registerText(callback) {
+        console.debug('Registered new text handler\n' + callback)
         this.textCallback = callback
     }
 
@@ -142,13 +147,8 @@ class Bot {
     }
 }
 
-const ParseMode = {
+export const ParseMode = {
     MarkdownV2 : 'MarkdownV2',
     HTML: 'HTML',
     Markdown: 'Markdown'
-}
-
-module.exports = {
-    Bot: Bot,
-    ParseMode: ParseMode
 }

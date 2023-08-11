@@ -2,7 +2,7 @@
   "name": "turkey_steam_bot",
   "version": "1.0.0",
   "description": "The bot allows you to get the best price to top up a Turkey's Steam account",
-  "main": "index.js",
+  "main": "index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
