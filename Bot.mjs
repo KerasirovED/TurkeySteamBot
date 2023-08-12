@@ -1,6 +1,6 @@
 
 import { Bot, ParseMode } from './TelegramApi.mjs'
-import { gameInfo, getPirce, allGames, Regions } from './SteamApi.mjs'
+import { gameInfo, allGames, Region, Price } from './SteamApi.mjs'
 import { token } from './secrets.mjs'
 
 const bot = new Bot(token)
@@ -11,29 +11,33 @@ bot.registerCommand('start', async (message) => {
 
 bot.registerText(async (message) => {
     const errorOccured = async reason => {
-        const error = 'Ooops! An error during Steam Info retrival occured!'
-        console.error(error + '\n' + reason)
-        await message.reply(error)
+        console.error('Ooops! An error during Steam Info retrival occured!\n' + reason)
+        await message.reply('Ууупс! Не смог достать данные из стима, сорян.')
     }
+
     const replyPrices = async appid => {
         await gameInfo(appid).then(async game => {
             if (!game) {
-                console.debug('Игру не нашел')
-                await message.reply(`Игрулю с Steam App ID '${appid}' не нашел, увы`)
+                console.debug(`The game with appid: 'appid' havn't been found.`)
+                await message.reply(`Игрулю с Steam App ID '${appid}' не нашел, увы.`)
                 return
             }
 
             const nameAsLink = `[${game.name}](https://store.steampowered.com/app/${appid})`
 
-            await getPirce(appid, Regions.Turkey).then(async lira => {
-                console.debug(`Прайс на лиру: '${JSON.stringify(lira, null, 4)}'`)
+            const prices = [
+                new Price(appid, Region.Europe),
+                new Price(appid, Region.Turkey),
+                new Price(appid, Region.Kazakhstan),
+                new Price(appid, Region.Russia)
+            ]
 
-                await getPirce(appid, Regions.Euro).then(async eur => {
-                    console.debug(`Прайс на еврик: '${JSON.stringify(eur, null, 4)}'`)
-                    await message.reply(`Прайсы на ${nameAsLink}:\nЛира: ${lira?.final_formatted}\nЕвро: ${eur?.final_formatted}`, ParseMode.MarkdownV2)
-                }).catch(async reason => errorOccured(reason))
-            }, async reason => errorOccured(reason)).catch(async reason => errorOccured(reason))
-        }, reason => errorOccured(reason)).catch(reason => errorOccured(reason))
+            await Promise.all(prices.map(async price => await price.getPrice()))
+
+            const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.formattedPrice}`).join('\n')
+
+            await message.reply(`Прайсы на ${nameAsLink}:\n${pricesString}`, ParseMode.MarkdownV2)
+        }, reason => errorOccured(reason))
     }
 
     console.debug(`Trying to process: '${message.text}'`)
