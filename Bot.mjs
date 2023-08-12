@@ -1,6 +1,6 @@
 
 import { Bot, ParseMode } from './TelegramApi.mjs'
-import { gameInfo, allGames, Region, Price } from './SteamApi.mjs'
+import { gameInfo, allGames, Region, Price, PriceComparedWithRuble } from './SteamApi.mjs'
 import { token } from './secrets.mjs'
 
 const bot = new Bot(token)
@@ -8,6 +8,8 @@ const bot = new Bot(token)
 bot.registerCommand('start', async (message) => {
     await message.reply("Это страт!!!")
 })
+
+const lastSuccessAppid = {}
 
 bot.registerText(async (message) => {
     const errorOccured = async reason => {
@@ -32,11 +34,21 @@ bot.registerText(async (message) => {
                 new Price(appid, Region.Russia)
             ]
 
-            await Promise.all(prices.map(async price => await price.getPrice()))
-
+            try {
+                await Promise.all(prices.map(async price => await price.getPrice()))
+            } catch {
+                await message.reply('Не вышло, сорян.')
+                return
+            }
             const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.formattedPrice}`).join('\n')
 
             await message.reply(`Прайсы на ${nameAsLink}:\n${pricesString}`, ParseMode.MarkdownV2)
+
+            lastSuccessAppid[message.chat.id] = {
+                appid: appid,
+                nameAsLink: nameAsLink
+            }
+
         }, reason => errorOccured(reason))
     }
 
@@ -65,6 +77,35 @@ bot.registerText(async (message) => {
                 }
             }).catch(async reason => await errorOccured(reason))
     }    
+})
+
+bot.registerCommand('rub', async message => {
+    const app = lastSuccessAppid[message.chat.id]
+
+    if (!app) {
+        message.reply('Я не нашел последнего удачного сообщения. Отправь айди или имя игры еще раз.')
+        return
+    }
+
+    const prices = [
+        new PriceComparedWithRuble(app.appid, Region.Europe),
+        new PriceComparedWithRuble(app.appid, Region.Turkey),
+        new PriceComparedWithRuble(app.appid, Region.Kazakhstan),
+        new PriceComparedWithRuble(app.appid, Region.Russia)
+    ]
+
+
+    try {
+        await Promise.all(prices.map(async price => await price.getPrice()))
+        await Promise.all(prices.map(async price => await price.getRateToRub()))
+    } catch {
+      await message.reply('Не вышло, сорян.')
+      return
+    }
+
+    const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.rubleFormattedPrice}`).join('\n')
+
+    await message.reply(`Прайсы на ${app.nameAsLink}:\n${pricesString}`, ParseMode.MarkdownV2)
 })
 
 export default bot

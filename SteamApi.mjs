@@ -132,7 +132,8 @@ export class PriceComparedWithRuble extends Price {
     get rubleFormattedPrice() {
         const formatter = new Intl.NumberFormat('ru-RU', {
             style: "decimal",
-            minimumFractionDigits: 2
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         })
 
         return formatter.format(this.rublePrice) + ' ' + Region.Russia.Currency.Symbol
@@ -158,7 +159,8 @@ export class PriceComparedWithRuble extends Price {
         }
 
         await fetch(uri)
-            .then(response => this.rubleRate = response.rates.RUB, reason => processFetchError(reason))
+            .then(response => response.json(), reason => processFetchError(reason))
+            .then(data => this.rubleRate = data.rates.RUB)
             .catch(reason => processFetchError(reason))
     }
 }
