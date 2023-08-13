@@ -43,7 +43,7 @@ export class Bot {
             })
 	}
 
-	async sendMessage(chatId, text, parseMode) {
+	async sendMessage(chatId, text, options) {
 		const uri = this.botUri + '/sendMessage'
 
         let body = {
@@ -52,8 +52,11 @@ export class Bot {
             disable_web_page_preview: true
         }
 
-        if (parseMode)
-            body.parse_mode = parseMode
+        if (options?.parseMode)
+            body.parse_mode = options?.parseMode
+
+        if (options?.reply_markup)
+            body.reply_markup = options?.reply_markup
 
 		const requestInfo = { 
 			method: 'POST',
@@ -66,64 +69,83 @@ export class Bot {
 		console.debug(`Request: '${uri}'`)
 		console.debug(`requestInfo:\n'${JSON.stringify(requestInfo, null, 4)}'`)
 
-		return await fetch(uri, requestInfo)
+		await fetch(uri, requestInfo)
 			.then(response => {
 				const json = response.json() 
 				console.debug(`Received:\n${JSON.stringify(json, null, 4)}`)
 				return json
-			}, _ => console.debug('Промис в sendMessage нагнули!'))
-            .catch(reason => console.debug('sendMessage поймал ошибку' + reason))
+			}, reason => console.error('sendMessage rejected:' + reason))
+            .catch(reason => console.error('sendMessage caught an exception:' + reason))
 	}
 
     async processUpdates(updates) {
-        const commands = 
+        updates.forEach(update => this.appendReply(update?.message))
+
+        const commandUpdates = 
             updates.filter(update => update?.message?.entities?.map(entity => entity.type).includes('bot_command'))
 
         await Promise.all(
-            commands.map(async command => 
-                await this.commandCallbacks.find(x => x.command === command.message.text.substring(1))
-                    ?.callback(this.appendReply(command.message)))
+            commandUpdates.map(async update => 
+                await this.commandHandlers.find(x => x.command === update.message.text.substring(1))
+                    ?.handler(update.message))
         )
 
-        if (this.textCallback) {
-            const texts = updates.filter(update => update?.message?.entities === undefined && update?.message?.text !== undefined)
-            await Promise.all(texts.map(async text => await this.textCallback(this.appendReply(text.message))))
-        }
+        const textUpdates = updates.filter(update => update?.message?.entities === undefined && update?.message?.text !== undefined)
+        await Promise.all(textUpdates.map(async update => {
+            const textHandler = this.textHandlers.find(x => x.text === update.message.text)
+
+            if (textHandler)
+                await textHandler.handler(update.message)
+            else
+                await this.anyTexthandler(update.message)
+        }))  
     }
 
-    commandCallbacks = []
-    registerCommand(command, callback) {
-        const addCommand = (command, callback) => {
-            let sameCommand = this.commandCallbacks.find(x => x.command === command)
+    commandHandlers = []
+    registerCommandHandler(command, handler) {
+        const addCommand = (command, handler) => {
+            let sameCommand = this.commandHandlers.find(x => x.command === command)
 
             const newCommand = {
                 command: command,
-                callback: callback
+                handler: handler
             }
             
             if (sameCommand) {
-                sameCommand.callback = newCommand.callback
+                sameCommand.handler = newCommand.handler
 
-                console.debug(`Replaced callback` + JSON.stringify(newCommand, null, 4))
+                console.debug(`Replaced handler` + JSON.stringify(newCommand, null, 4))
             }
             else {
-                this.commandCallbacks.push(newCommand)
+                this.commandHandlers.push(newCommand)
 
                 console.debug('Registered new message handler\n' + JSON.stringify(newCommand, null, 4))
             }
         }
+        
+        if (typeof(handler) !== 'function')
+            throw new HandlerTypeError()
 
-        if (command instanceof String || typeof command === 'string')
-            addCommand(command, callback)
+        if (this.isString(command)) {
+            addCommand(command, handler)
+            return
+        }
 
-        if (command instanceof Array)
-            command.forEach(command => addCommand(command, callback))
+        if (command instanceof Array && command.every(x => this.isString(x))) {
+            command.forEach(command => addCommand(command, handler))
+            return
+        }
+
+        throw new TypeError('The command should be either a string or an array of strings!')
     }
 
-    textCallback = undefined
-    registerText(callback) {
-        console.debug('Registered new text handler\n' + callback)
-        this.textCallback = callback
+    anyTexthandler = undefined
+    registerAnyTextHandler(handler) {
+        if (typeof(handler) !== 'function')
+            throw new HandlerTypeError()
+
+        console.debug('Registered new any text handler\n' + handler)
+        this.anyTexthandler = handler
     }
 
     startPolling(delay) {
@@ -142,8 +164,35 @@ export class Bot {
     }
 
     appendReply(message) {
-        message.reply = async (text, parseMode) => await this.sendMessage(message.chat.id, text, parseMode)
+        if (message && typeof(message) === 'object')
+            message.reply = async (text, options) => await this.sendMessage(message.chat.id, text, options)
+
         return message
+    }
+
+    textHandlers = []
+    textHandler(text, handler) {
+        if (!this.isString(text))
+            throw new TypeError('The text should be a string!');
+
+        if (typeof(handler) !== 'function')
+            throw new HandlerTypeError();
+
+        const prevHandler = this.textHandlers.find(x => x.text === text);
+
+        if (prevHandler) {
+            prevHandler.handler = handler
+            return
+        }
+
+        this.textHandlers.push({
+            text: text,
+            handler: handler
+        })
+    }
+
+    isString(value) {
+        return value instanceof String || typeof value === 'string'
     }
 }
 
@@ -151,4 +200,108 @@ export const ParseMode = {
     MarkdownV2 : 'MarkdownV2',
     HTML: 'HTML',
     Markdown: 'Markdown'
+}
+
+export class ReplyKeyboardMarkup {    
+    constructor(keyboard, options) {
+        this.keyboard = keyboard
+        this.oneTimeKeyboard = options?.oneTimeKeyboard
+        this.resizeKeyboard = options?.resizeKeyboard ?? true
+    }
+
+    /**
+     * @param {Array[Array[KeyboardButton]]} value
+     */
+    set keyboard(value) {
+        if (value instanceof Array === false)
+            throw TypeError('The keyboard must be an array!')
+
+        const nonArrayRowsCount = value.filter(row => row instanceof Array === false).length
+
+        if (nonArrayRowsCount > 0) 
+            throw TypeError('The keyboard must be an array of arrays!')
+
+        value.forEach(row => {
+            const nonKeyboardButtons = row.filter(key => key instanceof KeyboardButton === false)
+
+            if (nonKeyboardButtons.length > 0)
+                throw TypeError('The keyboard buttons must be instanses of KeyboardButton! Got: ' + nonArrayRowsCount.pop())
+        })
+
+        this._keyboard = value
+    }
+
+    get keyboard() {
+        return this._keyboard
+    }
+
+    set oneTimeKeyboard(value) {
+        this._oneTimeKeyboard = Boolean(value)
+    }
+
+    get oneTimeKeyboard() {
+        return this._oneTimeKeyboard
+    }
+
+    set resizeKeyboard(value) {
+        this._resizeKeyboard = Boolean(value)
+    }
+
+    get resizeKeyboard() {
+        return this._resizeKeyboard
+    }
+
+    asJson() {
+        const keyboard = this.keyboard.map(row => row.map(key => key.asJson()))
+
+        const result = {
+            keyboard: keyboard,
+            resize_keyboard: this._resizeKeyboard
+        }
+
+        if (this.oneTimeKeyboard) {
+            result.one_time_keyboard = this.oneTimeKeyboard
+        }
+
+        return result
+    }
+}
+
+export class KeyboardButton {
+    constructor(text) {
+        this.text = text
+    }
+
+    /**
+     * @param {string} value
+     */
+    set text(value) {
+        if (value instanceof String === false && typeof value !== 'string')
+            throw TypeError('The text should be a string!')
+
+        this._text = value
+    }
+
+    get text() {
+        return this._text
+    }
+
+    asJson() {
+        const result = {
+            text: this.text
+        }
+
+        return result
+    }
+}
+
+export class HandlerTypeError extends TypeError {
+    constructor() {
+        const message = 'The handler should be a function!';
+        super(message);
+    }
+}
+
+export const ReplyKeyboardRemove = {
+    remove_keyboard: true
 }

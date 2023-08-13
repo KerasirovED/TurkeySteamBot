@@ -82,9 +82,9 @@ export class Price {
     }
 
     async getPrice() {
-        console.debug(`Getting price by appid: '${this.appid}', and region: '${this.region.SteamCode}'`)
+        console.debug(`Getting price by appid: '${this._appid}', and region: '${this._region.SteamCode}'`)
 
-        const uri = `https://store.steampowered.com/api/appdetails?filters=price_overview&appids=${this.appid}&cc=${this.region.SteamCode}`
+        const uri = `https://store.steampowered.com/api/appdetails?filters=price_overview&appids=${this._appid}&cc=${this._region.SteamCode}`
 
         console.debug(`URI: '${uri}'`)
 
@@ -95,9 +95,9 @@ export class Price {
         }
 
         await fetch(uri)
-            .then(response => response.json(), reason => processFetchError(reason))
+            .then(response => response.json(), processFetchError)
             .then(game => this._price = game[this.appid]?.data.price_overview.final / 100)
-            .catch(reason => processFetchError(reason))
+            .catch(processFetchError)
     }
 
     get appid() {
@@ -118,37 +118,42 @@ export class Price {
             minimumFractionDigits: 2
         })
 
-        return formatter.format(this.price) + ' ' + this.region.Currency.Symbol
+        return formatter.format(this._price) + ' ' + this._region.Currency.Symbol
     }
 }
 
-export class PriceComparedWithRuble extends Price {
-    rubleRate = undefined
+export class PriceInRubles extends Price {
+    _rubleRate = undefined
 
-    get rublePrice() {
-        return this.price * this.rubleRate   
+    get price() {
+        return this._price * this._rubleRate
     }
     
-    get rubleFormattedPrice() {
+    get formattedPrice() {
         const formatter = new Intl.NumberFormat('ru-RU', {
             style: "decimal",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         })
 
-        return formatter.format(this.rublePrice) + ' ' + Region.Russia.Currency.Symbol
+        return formatter.format(this.price) + ' ' + Region.Russia.Currency.Symbol
+    }
+
+    async getPrice() {
+        await super.getPrice()
+        await this.getRateToRub()
     }
 
     async getRateToRub() {
-        console.debug('Requesting rate in RUB')
+        console.debug('Requesting rate in RUB for ' + this._region.Currency.Iso)
 
-        if (this.region === Region.Russia) {
+        if (this._region.Currency.Iso === Region.Russia.Currency.Iso) {
             console.debug('The currency already RUB')
-            this.rubleRate = 1
+            this._rubleRate = 1
             return
         }
 
-        const uri = `https://api.exchangerate.host/latest?base=${this.region.Currency.Iso}&symbols=RUB`
+        const uri = `https://api.exchangerate.host/latest?base=${this._region.Currency.Iso}&symbols=RUB`
 
         console.debug(`URI: '${uri}'`)
 
@@ -159,8 +164,28 @@ export class PriceComparedWithRuble extends Price {
         }
 
         await fetch(uri)
-            .then(response => response.json(), reason => processFetchError(reason))
-            .then(data => this.rubleRate = data.rates.RUB)
-            .catch(reason => processFetchError(reason))
+            .then(response => response.json(), processFetchError)
+            .then(data => this._rubleRate = data.rates.RUB)
+            .catch(processFetchError)
+    }
+}
+
+export class PriceInRublesWithCommission extends PriceInRubles {
+    constructor(appid, region, commission) {
+        super(appid, region)
+        this.commission = commission ?? 0
+    }
+
+    get commission() {
+        return this._commission
+    }
+
+    set commission(value) {
+        value = Number(value)
+        this._commission = value
+    }
+
+    get price() {
+        return super.price + super.price * this._commission
     }
 }
