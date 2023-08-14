@@ -25,7 +25,7 @@ bot.registerAnyTextHandler(async (message) => {
 
     const markup = new ReplyKeyboardMarkup(keyboard, {oneTimeKeyboard: true})
 
-    message.reply('Какую стоимость игр ты хочешь увидить?', {reply_markup: markup.asJson()})
+    await message.reply('Какую стоимость игры ты хочешь увидить?', {reply_markup: markup.asJson()})
 
     lastAnyTextHanderMessage[message.chat.id] = message.text
 })
