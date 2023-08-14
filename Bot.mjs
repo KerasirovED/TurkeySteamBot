@@ -2,6 +2,7 @@
 import { Bot, ParseMode, KeyboardButton, ReplyKeyboardMarkup } from './TelegramApi.mjs'
 import { gameInfo, allGames, Region, Price, PriceInRubles, PriceInRublesWithCommission } from './SteamApi.mjs'
 import { token } from './secrets.mjs'
+import { MarkdownV2 } from './StringUtils.mjs'
 
 const bot = new Bot(token)
 
@@ -31,7 +32,7 @@ bot.registerAnyTextHandler(async (message) => {
 })
 
 const replyPrices = async (message, game, getPrices) => {
-    const nameAsLink = `[${game.name}](https://store.steampowered.com/app/${game.appid})`
+    const nameAsLink = `[${MarkdownV2.escapeChars(game.name)}](https://store.steampowered.com/app/${game.appid})`
 
     const prices = getPrices(game.appid)
 

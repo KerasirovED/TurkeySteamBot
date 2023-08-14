@@ -1,4 +1,6 @@
 
+import { isString } from "./StringUtils.mjs"
+
 export class Bot {
     constructor(token) {
         this.token = token
@@ -126,12 +128,12 @@ export class Bot {
         if (typeof(handler) !== 'function')
             throw new HandlerTypeError()
 
-        if (this.isString(command)) {
+        if (isString(command)) {
             addCommand(command, handler)
             return
         }
 
-        if (command instanceof Array && command.every(x => this.isString(x))) {
+        if (command instanceof Array && command.every(x => isString(x))) {
             command.forEach(command => addCommand(command, handler))
             return
         }
@@ -172,7 +174,7 @@ export class Bot {
 
     textHandlers = []
     textHandler(text, handler) {
-        if (!this.isString(text))
+        if (!isString(text))
             throw new TypeError('The text should be a string!');
 
         if (typeof(handler) !== 'function')
@@ -189,10 +191,6 @@ export class Bot {
             text: text,
             handler: handler
         })
-    }
-
-    isString(value) {
-        return value instanceof String || typeof value === 'string'
     }
 }
 
@@ -276,7 +274,7 @@ export class KeyboardButton {
      * @param {string} value
      */
     set text(value) {
-        if (value instanceof String === false && typeof value !== 'string')
+        if (!isString(value))
             throw TypeError('The text should be a string!')
 
         this._text = value

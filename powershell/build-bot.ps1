@@ -17,7 +17,8 @@ $archivedFiles = (
     "readme.md",
     "secrets.mjs",
     "SteamApi.mjs",
-    "TelegramApi.mjs"
+    "TelegramApi.mjs",
+    "StringUtils.mjs"
 )
 
 $archivedPaths = $archivedFiles | % {join-path $projectDir $_}
