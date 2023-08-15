@@ -1,7 +1,11 @@
 
-import { isString } from "./StringUtils.mjs"
+import isString from "../string-utils/isString.mjs"
+import HandlerTypeError from "./handler-type-error.mjs"
+import ReplyKeyboardMarkup from "./reply-keyboard-markup.mjs"
 
-export class Bot {
+export default class Bot {
+    session = {}
+
     constructor(token) {
         this.token = token
         this.botUri = `https://api.telegram.org/bot${token}`
@@ -58,7 +62,9 @@ export class Bot {
             body.parse_mode = options?.parseMode
 
         if (options?.reply_markup)
-            body.reply_markup = options?.reply_markup
+            body.reply_markup = options.reply_markup instanceof ReplyKeyboardMarkup
+                ? options.reply_markup.asJson()
+                : options.reply_markup
 
 		const requestInfo = { 
 			method: 'POST',
@@ -81,7 +87,7 @@ export class Bot {
 	}
 
     async processUpdates(updates) {
-        updates.forEach(update => this.appendReply(update?.message))
+        updates.forEach(update => this.appendSystemFields(update?.message))
 
         const commandUpdates = 
             updates.filter(update => update?.message?.entities?.map(entity => entity.type).includes('bot_command'))
@@ -165,9 +171,17 @@ export class Bot {
         polling()
     }
 
-    appendReply(message) {
-        if (message && typeof(message) === 'object')
+    appendSystemFields(message) {
+        if (message && typeof(message) === 'object') {
             message.reply = async (text, options) => await this.sendMessage(message.chat.id, text, options)
+
+            const sessionKey = `${message.from.id}:${message.chat.id}`
+            
+            if (!this.session[sessionKey])
+                this.session[sessionKey] = {}
+
+            message.session = this.session[sessionKey]
+        }
 
         return message
     }
@@ -192,114 +206,4 @@ export class Bot {
             handler: handler
         })
     }
-}
-
-export const ParseMode = {
-    MarkdownV2 : 'MarkdownV2',
-    HTML: 'HTML',
-    Markdown: 'Markdown'
-}
-
-export class ReplyKeyboardMarkup {    
-    constructor(keyboard, options) {
-        this.keyboard = keyboard
-        this.oneTimeKeyboard = options?.oneTimeKeyboard
-        this.resizeKeyboard = options?.resizeKeyboard ?? true
-    }
-
-    /**
-     * @param {Array[Array[KeyboardButton]]} value
-     */
-    set keyboard(value) {
-        if (value instanceof Array === false)
-            throw TypeError('The keyboard must be an array!')
-
-        const nonArrayRowsCount = value.filter(row => row instanceof Array === false).length
-
-        if (nonArrayRowsCount > 0) 
-            throw TypeError('The keyboard must be an array of arrays!')
-
-        value.forEach(row => {
-            const nonKeyboardButtons = row.filter(key => key instanceof KeyboardButton === false)
-
-            if (nonKeyboardButtons.length > 0)
-                throw TypeError('The keyboard buttons must be instanses of KeyboardButton! Got: ' + nonArrayRowsCount.pop())
-        })
-
-        this._keyboard = value
-    }
-
-    get keyboard() {
-        return this._keyboard
-    }
-
-    set oneTimeKeyboard(value) {
-        this._oneTimeKeyboard = Boolean(value)
-    }
-
-    get oneTimeKeyboard() {
-        return this._oneTimeKeyboard
-    }
-
-    set resizeKeyboard(value) {
-        this._resizeKeyboard = Boolean(value)
-    }
-
-    get resizeKeyboard() {
-        return this._resizeKeyboard
-    }
-
-    asJson() {
-        const keyboard = this.keyboard.map(row => row.map(key => key.asJson()))
-
-        const result = {
-            keyboard: keyboard,
-            resize_keyboard: this._resizeKeyboard
-        }
-
-        if (this.oneTimeKeyboard) {
-            result.one_time_keyboard = this.oneTimeKeyboard
-        }
-
-        return result
-    }
-}
-
-export class KeyboardButton {
-    constructor(text) {
-        this.text = text
-    }
-
-    /**
-     * @param {string} value
-     */
-    set text(value) {
-        if (!isString(value))
-            throw TypeError('The text should be a string!')
-
-        this._text = value
-    }
-
-    get text() {
-        return this._text
-    }
-
-    asJson() {
-        const result = {
-            text: this.text
-        }
-
-        return result
-    }
-}
-
-export class HandlerTypeError extends TypeError {
-    constructor() {
-        const message = 'The handler should be a function!';
-        super(message);
-    }
-}
-
-export const ReplyKeyboardRemove = {
-    remove_keyboard: true
 }
