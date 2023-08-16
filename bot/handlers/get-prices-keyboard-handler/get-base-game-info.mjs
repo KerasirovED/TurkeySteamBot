@@ -1,12 +1,11 @@
 
 import allGames from "../../../steam/all-games.mjs"
 import gameInfo from "../../../steam/game-info.mjs"
-import replyError from "./reply-error.mjs"
 
 export default async function getBaseGameInfo(searchText) {
     console.debug(`Trying to get game info by: '${searchText}'`)
 
-    const processError = async reason => await replyError(reason, message)
+    const processError = reason => console.debug(reason)
     const appid = Number(searchText)
     let foundedGame
 
