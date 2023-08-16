@@ -1,45 +1,34 @@
 
-import allGames from "../../../steam/all-games.mjs"
-import gameInfo from "../../../steam/game-info.mjs"
-import replyError from "./reply-error.mjs"
 import replyPrices from './reply-prices.mjs'
+import escapeChars from './../../../string-utils/markdown-v2/escape-chars.mjs'
+import getBaseGameInfo from './get-base-game-info.mjs'
 
 export default async function processButtonClick(message, getPrices) {
-    const processError = async reason => await replyError(reason, message)
-
-    const searchText = message.session.appid
-
+    const searchText = message.session.searchText
+    
     if (!searchText) {
         message.reply('Я забыл что ты мне там отправлял, отправь еще раз, плез')
         return
     }
-
-    console.debug(`Trying to process: '${searchText}'`)
-
-    const appid = Number(searchText)
-    let foundedGame
-
-    if (!isNaN(appid)) {
-        console.debug("It's a number, proceeding as appid")
-        await gameInfo(appid)
-            .then(async game => foundedGame = {
-                appid: appid,
-                name: game.name
-            }, processError)
-            .catch(processError)
+    
+    if (searchText === message.session.replyPrices?.searchText) {
+        await replyPrices(message, message.session.replyPrices.game, getPrices)
+        return
     }
-    else {
-        console.debug(`It's a text, proceeding with the searching of the full match`)
-        
-        await allGames()
-            .then(games => games.find(game => game.name === searchText), processError)
-            .then(async game => foundedGame = game)
-            .catch(processError)
-    }
-
+    
+    const foundedGame = await getBaseGameInfo(searchText)
+    
     if (foundedGame) {
         console.debug(`Found, appid: '${foundedGame.appid}'`)
-        await replyPrices(message, foundedGame, getPrices).catch(processError)
+
+        foundedGame.nameAsLink = `[${escapeChars(foundedGame.name)}](https://store.steampowered.com/app/${foundedGame.appid})`
+
+        message.session.replyPrices = {
+            game: foundedGame,
+            searchText: searchText
+        }
+
+        await replyPrices(message, foundedGame, getPrices)
     }
     else {
         console.debug("Didn't find")
