@@ -29,6 +29,10 @@ export default async function getBaseGameInfo(searchText) {
             .then(game => foundedGame = game)
             .catch(processError)
 
+        if (!foundedGame) {
+            return undefined
+        }
+
         await gameInfo(foundedGame.appid)
             .then(game => foundedGame.isFree = game.is_free, processError)
             .catch(processError)
