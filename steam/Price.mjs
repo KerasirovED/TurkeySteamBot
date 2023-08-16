@@ -22,7 +22,7 @@ export default class Price {
 
         await fetch(uri)
             .then(response => response.json(), processFetchError)
-            .then(game => this._price = game[this.appid]?.data.price_overview.final / 100)
+            .then(game => this._price = game[this.appid]?.data?.price_overview.final / 100)
             .catch(processFetchError)
     }
 
@@ -39,6 +39,10 @@ export default class Price {
     }
 
     get formattedPrice() {
+        if (!this._price) {
+            return undefined
+        }
+
         const formatter = new Intl.NumberFormat('ru-RU', {
             style: "decimal",
             minimumFractionDigits: 2

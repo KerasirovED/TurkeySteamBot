@@ -17,7 +17,7 @@ export default class Bot {
 	}
 	
     #offset = 0
-	async getUpdates(timeout = 100) {
+	async getUpdates(timeout) {
         let params = []
 
         params.push("?offset=" + (this.#offset + 1))

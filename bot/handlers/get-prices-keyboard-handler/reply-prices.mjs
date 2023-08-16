@@ -22,7 +22,7 @@ export default async function replyPrices(message, game, getPrices) {
         }
     }
 
-    const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.formattedPrice}`).join('\n')
+    const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.formattedPrice ?? 'цена недоступна'}`).join('\n')
 
     await message.reply(`Прайсы на ${game.nameAsLink}:\n${pricesString}`, { parseMode: ParseMode.MarkdownV2 })
 

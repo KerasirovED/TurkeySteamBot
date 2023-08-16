@@ -10,6 +10,10 @@ export default class PriceInRubles extends Price {
     }
     
     get formattedPrice() {
+        if (!this._price) {
+            return undefined
+        }
+
         const formatter = new Intl.NumberFormat('ru-RU', {
             style: "decimal",
             minimumFractionDigits: 2,
