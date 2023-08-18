@@ -1,18 +1,20 @@
 
 import ParseMode from './../../../telegram/parse-mode.mjs'
+import getPricesKeyboardMarkup from '../../keyboards/get-prices-keyboard-markup.mjs'
 
-export default async function replyPrices(message, game, getPrices) {
-    if (game.isFree === true) {
-        await message.reply(`🆓 ${game.nameAsLink} бесплатная`, { parseMode: ParseMode.MarkdownV2 })
+export default async function replyPrices(message, getPrices) {
+    if (!message.session.game) {
+        message.reply('Я забыл игру, отправь еще раз, плез')
         return
     }
     
     let prices
 
-    if (message.text === message.session.replyPrices.text) 
-        prices = message.session.replyPrices.prices
-    else {
-        prices = getPrices(game.appid)
+    if (message.session.game === message.session.replyPrices?.game) 
+        prices = message.session.replyPrices.prices[message.text]
+    
+    if (!prices) {
+        prices = getPrices(message.session.game.appid)
 
         try {
             await Promise.all(prices.map(async price => await price.getPrice()))
@@ -20,12 +22,18 @@ export default async function replyPrices(message, game, getPrices) {
             await message.reply('Не вышло, сорян.')
             return
         }
+
+        if (!message.session.replyPrices) {
+            message.session.replyPrices = {
+                prices: {}
+            }
+        }
+
+        message.session.replyPrices.prices[message.text] = prices
+        message.session.replyPrices.game = message.session.game
     }
 
     const pricesString = prices.map(price => `${price.region.Flag} ${price.region.Name}: ${price.formattedPrice ?? 'не продается'}`).join('\n')
 
-    await message.reply(`Прайсы на ${game.nameAsLink}:\n${pricesString}`, { parseMode: ParseMode.MarkdownV2 })
-
-    message.session.replyPrices.prices = prices
-    message.session.replyPrices.text = message.text
+    await message.replyMd2(['🎮 ' + message.session.game.nameWithLink, message.text, '', pricesString].join('\n'))
 }

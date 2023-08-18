@@ -1,7 +1,7 @@
 
-import isString from './../isString.mjs'
+import isString from '../isString.mjs'
 
-export default function escapeChars(string) {
+export default function(string) {
     if (!isString(string)) {
         return string
     }

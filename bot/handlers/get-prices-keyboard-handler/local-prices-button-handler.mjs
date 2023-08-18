@@ -1,10 +1,10 @@
 
-import processButtonClick from "./process-button-click.mjs"
+import replyPrices from "./reply-prices.mjs"
 import Price from "../../../steam/Price.mjs"
 import Region from "../../../steam/region.mjs"
 
 export default async function localPricesButtonHandler(message) {
-    await processButtonClick(message, appid => [
+    await replyPrices(message, appid => [
         new Price(appid, Region.Europe),
         new Price(appid, Region.Turkey),
         new Price(appid, Region.Kazakhstan),

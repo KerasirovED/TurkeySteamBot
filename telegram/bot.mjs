@@ -1,6 +1,7 @@
 
 import isString from "../string-utils/isString.mjs"
 import HandlerTypeError from "./handler-type-error.mjs"
+import ParseMode from "./parse-mode.mjs"
 import ReplyKeyboardMarkup from "./reply-keyboard-markup.mjs"
 
 export default class Bot {
@@ -27,19 +28,19 @@ export default class Bot {
 
         const uri = this.botUri + "/getUpdates" + params.join('&')
 
-        console.debug(`Request: '${uri}'`)
+        // console.debug(`Request: '${uri}'`)
 
         return await fetch(uri)
             .then(result => result.json())
             .then(data => {
-                const received = `Received:\n${JSON.stringify(data, null, 4)}`
+                // const received = `Received:\n${JSON.stringify(data, null, 4)}`
 
                 if (!data.result) {
-                    console.error(received)
+                    // console.error(received)
                     return []
                 }
 
-                console.debug(received)
+                // console.debug(received)
                 return data?.result
             })
             .then(updates => {
@@ -50,23 +51,53 @@ export default class Bot {
 	}
 
 	async sendMessage(chatId, text, options) {
-		const uri = this.botUri + '/sendMessage'
+        const body = this._getDefaultMessageBody(chatId, text)
+        this._setParseMode(body, options)
+        this._setReplyMarkup(body, options)
+		return await this._callApiWithBody('sendMessage', body) 
+	}
 
-        let body = {
+	async editMessageText(chatId, messageId, text, options) {
+        const body = this._getDefaultMessageBody(chatId, text)
+        body.message_id = messageId
+        this._setParseMode(body, options)
+        this._setReplyMarkup(body, options)
+	    return await this._callApiWithBody('editMessageText', body) 
+	}
+
+    async deleteMessage(chatId, messageId) {
+        const body = {
+            chat_id: chatId,
+            message_id: messageId
+        }
+
+        await this._callApiWithBody('deleteMessage', body)
+    }
+
+    _getDefaultMessageBody(chatId, text) {
+        return {
             chat_id: chatId,
             text: text,
             disable_web_page_preview: true
         }
+    }
 
-        if (options?.parseMode)
-            body.parse_mode = options?.parseMode
-
+    _setReplyMarkup(body, options) {
         if (options?.reply_markup)
             body.reply_markup = options.reply_markup instanceof ReplyKeyboardMarkup
                 ? options.reply_markup.asJson()
                 : options.reply_markup
+    }
 
-		const requestInfo = { 
+    _setParseMode(body, options) {
+        if (options?.parseMode)
+            body.parse_mode = options.parseMode
+    }
+
+    async _callApiWithBody(method, body) {
+        const uri = this.botUri + '/' + method
+
+        const requestInfo = { 
 			method: 'POST',
 			headers: {
 				"Content-Type": "application/json" 
@@ -77,14 +108,16 @@ export default class Bot {
 		console.debug(`Request: '${uri}'`)
 		console.debug(`requestInfo:\n'${JSON.stringify(requestInfo, null, 4)}'`)
 
-		await fetch(uri, requestInfo)
-			.then(response => {
-				const json = response.json() 
-				console.debug(`Received:\n${JSON.stringify(json, null, 4)}`)
-				return json
-			}, reason => console.error('sendMessage rejected:' + reason))
-            .catch(reason => console.error('sendMessage caught an exception:' + reason))
-	}
+		return await fetch(uri, requestInfo)
+			.then(response => response.json(), reason => console.error(`${method} rejected: ${reason}`))
+            .then(data => {
+                console.debug(`${method} received:\n${JSON.stringify(data, null, 4)}`)
+                return data
+            })
+            .then(data => data.result)
+            .then(message => this.appendSystemFields(message))
+            .catch(reason => console.error(`${method} caught an exception: ${reason}`))
+    }
 
     async processUpdates(updates) {
         updates.forEach(update => this.appendSystemFields(update?.message))
@@ -98,7 +131,7 @@ export default class Bot {
                     ?.handler(update.message))
         )
 
-        const textUpdates = updates.filter(update => update?.message?.entities === undefined && update?.message?.text !== undefined)
+        const textUpdates = updates.filter(update => update?.message?.entities !== 'bot_command' && update?.message?.text !== undefined)
         await Promise.all(textUpdates.map(async update => {
             const textHandler = this.textHandlers.find(x => x.text === update.message.text)
 
@@ -158,12 +191,12 @@ export default class Bot {
 
     startPolling(delay) {
         const polling = () => setTimeout(async () => {
-            console.debug('Getting updates...')
+            // console.debug('Getting updates...')
             
             await this.getUpdates()
                 .then(updates => this.processUpdates(updates))
     
-            console.debug('Updates have got!')
+            // console.debug('Updates have got!')
     
             polling()
         }, delay)
@@ -174,8 +207,17 @@ export default class Bot {
     appendSystemFields(message) {
         if (message && typeof(message) === 'object') {
             message.reply = async (text, options) => await this.sendMessage(message.chat.id, text, options)
+            message.replyMd2 = async (text, options) => {
+                if (!options)
+                    options = {}
 
-            const sessionKey = `${message.from.id}:${message.chat.id}`
+                options.parseMode = ParseMode.MarkdownV2
+                await this.sendMessage(message.chat.id, text, options)
+            }
+            message.editText = async (text, options) => await this.editMessageText(message.chat.id, message.message_id, text, options)
+            message.delete = async () => await this.deleteMessage(message.chat.id, message.message_id)
+
+            const sessionKey = message.chat.id
             
             if (!this.session[sessionKey])
                 this.session[sessionKey] = {}

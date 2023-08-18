@@ -1,6 +1,8 @@
 
-import allGames from "../../../steam/all-games.mjs"
-import gameInfo from "../../../steam/game-info.mjs"
+import allGames from "./all-games.mjs"
+import gameInfo from "./game-info.mjs"
+import escape from '../string-utils/markdown-v2/escape.mjs'
+import link from "../string-utils/markdown-v2/link.mjs"
 
 export default async function getBaseGameInfo(searchText) {
     console.debug(`Trying to get game info by: '${searchText}'`)
@@ -36,6 +38,9 @@ export default async function getBaseGameInfo(searchText) {
             .then(game => foundedGame.isFree = game.is_free, processError)
             .catch(processError)
     }
+
+    if (foundedGame) 
+        foundedGame.nameWithLink = link(foundedGame.name, `https://store.steampowered.com/app/${foundedGame.appid}`)
 
     return foundedGame
 } 
