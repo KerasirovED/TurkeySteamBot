@@ -1,4 +1,5 @@
 
+import getAppidFromLink from "../../../steam/get-appid-from-link.mjs"
 import replyCouldNotWithReasonLogging from "../../replies/reply-could-not-with-reason-logging.mjs"
 import getGamesStartWithPaginator from "./get-games-start-with-paginator.mjs"
 import processGame from "./process-game.mjs"
@@ -13,9 +14,16 @@ export default async function(message) {
 
     await message.reply('Сек, ща поищу...')
         .then(async message => {
-            const appid = Number(searchString)
+            let appid = Number(searchString)
 
             if (!isNaN(appid)) {
+                processGame(message, appid)
+                return
+            }
+
+            appid = getAppidFromLink(searchString)
+
+            if (appid) {
                 processGame(message, appid)
                 return
             }
