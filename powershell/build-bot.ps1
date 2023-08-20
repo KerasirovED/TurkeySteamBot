@@ -20,6 +20,8 @@ $ignore += (
     ".gitignore"
 )
 
+$ignore = $ignore.Where{ $_ -ne "secrets.mjs" }
+
 $filesToBeArchived = Get-ChildItem $projectDir -Exclude $ignore
 
 Compress-Archive -Path $filesToBeArchived -DestinationPath $projectDir\.build\bot.zip
