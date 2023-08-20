@@ -154,17 +154,18 @@ export default class Bot {
             .map(update => update.message)
             .map(message => this._appendMessageSystemFields(message))
 
-        const commandUpdates = messageUpdates
-            .filter(message => message.entities?.map(entity => entity.type).includes('bot_command'))
+        const isCommand = message => message.entities?.map(entity => entity.type).includes('bot_command')
+        const isText = message => !isCommand(message) && message.text
+
+        const commandUpdates = messageUpdates.filter(isCommand)
 
         await Promise.all(
-            commandUpdates.map(async update => 
-                await this.commandHandlers.find(x => x.command === update.message.text.substring(1))
-                    ?.handler(update.message))
+            commandUpdates.map(async message => 
+                await this.commandHandlers.find(x => x.command === message.text.substring(1))
+                    ?.handler(message))
         )
 
-        const textUpdates = messageUpdates
-            .filter(message => message.entities !== 'bot_command' && message.text !== undefined)
+        const textUpdates = messageUpdates.filter(isText)
         
         await Promise.all(textUpdates.map(async message => {
             const textHandler = this.textHandlers.find(x => x.text === message.text)
