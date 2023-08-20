@@ -1,8 +1,8 @@
 
 import allGames from "./all-games.mjs"
 import gameInfo from "./game-info.mjs"
-import escape from '../string-utils/markdown-v2/escape.mjs'
 import link from "../string-utils/markdown-v2/link.mjs"
+import appendNameWithLink from "./append-name-with-link.mjs"
 
 export default async function getBaseGameInfo(searchText) {
     console.debug(`Trying to get game info by: '${searchText}'`)
@@ -40,7 +40,7 @@ export default async function getBaseGameInfo(searchText) {
     }
 
     if (foundedGame) 
-        foundedGame.nameWithLink = link(foundedGame.name, `https://store.steampowered.com/app/${foundedGame.appid}`)
+        foundedGame = appendNameWithLink(foundedGame)
 
     return foundedGame
 } 

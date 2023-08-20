@@ -1,7 +1,4 @@
 
-import ParseMode from './../../../telegram/parse-mode.mjs'
-import getPricesKeyboardMarkup from '../../keyboards/get-prices-keyboard-markup.mjs'
-
 export default async function replyPrices(message, getPrices) {
     if (!message.session.game) {
         message.reply('Я забыл игру, отправь еще раз, плез')

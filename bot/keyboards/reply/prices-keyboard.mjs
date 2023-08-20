@@ -1,6 +1,6 @@
 
-import ReplyKeyboardMarkup from "../../telegram/reply-keyboard-markup.mjs"
-import KeyboardButton from "../../telegram/keyboard-button.mjs"
+import ReplyKeyboardMarkup from "../../../telegram/reply-keyboard-markup.mjs"
+import KeyboardButton from "../../../telegram/keyboard-button.mjs"
 
 export const localPricesButton = new KeyboardButton('🌍 Локальные цены')
 export const rublePricesButton = new KeyboardButton('🪆 Цены в рублях')

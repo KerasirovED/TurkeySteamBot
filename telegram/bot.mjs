@@ -51,19 +51,31 @@ export default class Bot {
 	}
 
 	async sendMessage(chatId, text, options) {
-        const body = this._getDefaultMessageBody(chatId, text)
-        this._setParseMode(body, options)
-        this._setReplyMarkup(body, options)
+        const body = this._getMessageBody(chatId, text, options)
+
 		return await this._callApiWithBody('sendMessage', body) 
+            .then(message => this._appendMessageSystemFields(message))
 	}
 
 	async editMessageText(chatId, messageId, text, options) {
-        const body = this._getDefaultMessageBody(chatId, text)
+        const body = this._getMessageBody(chatId, text, options)
+
         body.message_id = messageId
-        this._setParseMode(body, options)
-        this._setReplyMarkup(body, options)
+
 	    return await this._callApiWithBody('editMessageText', body) 
+            .then(message => this._appendMessageSystemFields(message))
 	}
+
+    async editMessageReplyMarkup(chatId, messageId, replyMarkup) {
+        const body = {
+            chat_id: chatId,
+            message_id: messageId,
+            reply_markup: replyMarkup
+        }
+
+        return await this._callApiWithBody('editMessageReplyMarkup', body)
+            .then(message => this._appendMessageSystemFields(message))
+    }
 
     async deleteMessage(chatId, messageId) {
         const body = {
@@ -72,6 +84,14 @@ export default class Bot {
         }
 
         await this._callApiWithBody('deleteMessage', body)
+    }
+
+    _getMessageBody(chatId, text, options) {
+        const body = this._getDefaultMessageBody(chatId, text)
+        this._setParseMode(body, options)
+        this._setReplyMarkup(body, options)
+        
+        return body
     }
 
     _getDefaultMessageBody(chatId, text) {
@@ -94,6 +114,15 @@ export default class Bot {
             body.parse_mode = options.parseMode
     }
 
+    async answerCallbackQuery(callbackQueryId, options) {
+        const body = {
+            callback_query_id: callbackQueryId,
+            ...options
+        }
+
+        return await this._callApiWithBody('answerCallbackQuery', body)
+    }
+
     async _callApiWithBody(method, body) {
         const uri = this.botUri + '/' + method
 
@@ -102,11 +131,13 @@ export default class Bot {
 			headers: {
 				"Content-Type": "application/json" 
 			},
-			body: JSON.stringify(body)
+			body: body
 		}
 
 		console.debug(`Request: '${uri}'`)
 		console.debug(`requestInfo:\n'${JSON.stringify(requestInfo, null, 4)}'`)
+
+        requestInfo.body = JSON.stringify(body)
 
 		return await fetch(uri, requestInfo)
 			.then(response => response.json(), reason => console.error(`${method} rejected: ${reason}`))
@@ -115,15 +146,16 @@ export default class Bot {
                 return data
             })
             .then(data => data.result)
-            .then(message => this.appendSystemFields(message))
             .catch(reason => console.error(`${method} caught an exception: ${reason}`))
     }
 
     async processUpdates(updates) {
-        updates.forEach(update => this.appendSystemFields(update?.message))
+        const messageUpdates = updates.filter(update => update.message)
+            .map(update => update.message)
+            .map(message => this._appendMessageSystemFields(message))
 
-        const commandUpdates = 
-            updates.filter(update => update?.message?.entities?.map(entity => entity.type).includes('bot_command'))
+        const commandUpdates = messageUpdates
+            .filter(message => message.entities?.map(entity => entity.type).includes('bot_command'))
 
         await Promise.all(
             commandUpdates.map(async update => 
@@ -131,15 +163,28 @@ export default class Bot {
                     ?.handler(update.message))
         )
 
-        const textUpdates = updates.filter(update => update?.message?.entities !== 'bot_command' && update?.message?.text !== undefined)
-        await Promise.all(textUpdates.map(async update => {
-            const textHandler = this.textHandlers.find(x => x.text === update.message.text)
+        const textUpdates = messageUpdates
+            .filter(message => message.entities !== 'bot_command' && message.text !== undefined)
+        
+        await Promise.all(textUpdates.map(async message => {
+            const textHandler = this.textHandlers.find(x => x.text === message.text)
 
             if (textHandler)
-                await textHandler.handler(update.message)
+                await textHandler.handler(message)
             else
-                await this.anyTexthandler(update.message)
-        }))  
+                await this.anyTexthandler(message)
+        })) 
+
+        const callbackUpdates = updates
+            .filter(update => update.callback_query)
+            .map(update => update.callback_query)
+            .map(callback => this._appendCallbackSystemFields(callback))
+
+        await Promise.all(callbackUpdates.map(async callback => {
+            const callbackHandler = this.callbackHandlers.find(handler => handler.filter.test(callback.data))
+            await callbackHandler?.handler(callback)
+            await callback.answer()
+        }))
     }
 
     commandHandlers = []
@@ -204,28 +249,55 @@ export default class Bot {
         polling()
     }
 
-    appendSystemFields(message) {
-        if (message && typeof(message) === 'object') {
-            message.reply = async (text, options) => await this.sendMessage(message.chat.id, text, options)
-            message.replyMd2 = async (text, options) => {
-                if (!options)
-                    options = {}
+    _appendMessageSystemFields(message) {
+        if (!message || typeof(message) !== 'object') 
+            message = new Object(message)
 
-                options.parseMode = ParseMode.MarkdownV2
-                await this.sendMessage(message.chat.id, text, options)
-            }
-            message.editText = async (text, options) => await this.editMessageText(message.chat.id, message.message_id, text, options)
-            message.delete = async () => await this.deleteMessage(message.chat.id, message.message_id)
+        message.reply = async (text, options) => await this.sendMessage(message.chat.id, text, options)
+        message.replyMd2 = async (text, options) => {
+            if (!options)
+                options = {}
 
-            const sessionKey = message.chat.id
-            
-            if (!this.session[sessionKey])
-                this.session[sessionKey] = {}
-
-            message.session = this.session[sessionKey]
+            options.parseMode = ParseMode.MarkdownV2
+            await this.sendMessage(message.chat.id, text, options)
         }
 
+        message.editText = async (text, options) => await this.editMessageText(message.chat.id, message.message_id, text, options)
+        message.editTextMd2 = async (text, options) => {
+            options = Object(options)
+            options.parseMode = ParseMode.MarkdownV2
+            await this.editMessageText(message.chat.id, message.message_id, text, options)
+        }
+
+        message.delete = async () => await this.deleteMessage(message.chat.id, message.message_id)
+        message.editMarkup = async (markup) => await this.editMessageReplyMarkup(message.chat.id, message.message_id, markup)
+
+        this._appendSession(message, message.chat.id)
+
         return message
+    }
+
+    _appendCallbackSystemFields(callback) {
+        if (!callback || typeof(callback) !== 'object')
+            callback = new Object(callback)
+
+        callback.answer = async (options) => await this.answerCallbackQuery(callback.id, options) 
+
+        this._appendSession(callback, callback.message.chat.id)
+
+        this._appendMessageSystemFields(callback.message)
+
+        return callback
+    }
+
+    _appendSession(object, sessionKey) {
+        if (!object || typeof(object) !== 'object')
+            object = new Object(object)
+
+        if (!this.session[sessionKey])
+            this.session[sessionKey] = {}
+
+        object.session = this.session[sessionKey]
     }
 
     textHandlers = []
@@ -247,5 +319,11 @@ export default class Bot {
             text: text,
             handler: handler
         })
+    }
+
+    callbackHandlers = []
+    callbackHandler(filter, handler) {
+        filter = new RegExp(filter)
+        this.callbackHandlers.push({filter: filter, handler: handler})
     }
 }
