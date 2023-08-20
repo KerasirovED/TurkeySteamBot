@@ -8,6 +8,8 @@ import appendNameWithLink from "../../../steam/append-name-with-link.mjs"
 import replyCouldNotWithReasonLogging from "../../replies/reply-could-not-with-reason-logging.mjs"
 
 export default async function (message, appid) {
+    appid = Number(appid)
+
     const game = await getBaseGameInfo(appid)
 
     const handleError = async reason => await replyCouldNotWithReasonLogging(message, reason)
