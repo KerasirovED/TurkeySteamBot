@@ -17,14 +17,14 @@ export default async function(message) {
             let appid = Number(searchString)
 
             if (!isNaN(appid)) {
-                processGame(message, appid)
+                await processGame(message, appid)
                 return
             }
 
             appid = getAppidFromLink(searchString)
 
             if (appid) {
-                processGame(message, appid)
+                await processGame(message, appid)
                 return
             }
 
