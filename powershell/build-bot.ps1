@@ -9,18 +9,17 @@ if (Test-Path -Path $projectDir\.build\bot.zip) {
     Remove-Item -Path $projectDir\.build\bot.zip
 }
 
-$archivedFiles = (
-    "Bot.mjs",
-    "lambda.mjs",
+$ignore = Get-Content $projectDir\.gitignore
+$ignore += (
+    "index.mjs",
     "LICENSE",
     "package.json",
-    "readme.md",
-    "secrets.mjs",
-    "SteamApi.mjs",
-    "TelegramApi.mjs",
-    "StringUtils.mjs"
+    "README.md",
+    "secrets.example.mjs",
+    "powershell",
+    ".gitignore"
 )
 
-$archivedPaths = $archivedFiles | % {join-path $projectDir $_}
+$filesToBeArchived = Get-ChildItem $projectDir -Exclude $ignore
 
-Compress-Archive -Path $archivedPaths -DestinationPath $projectDir\.build\bot.zip
+Compress-Archive -Path $filesToBeArchived -DestinationPath $projectDir\.build\bot.zip
