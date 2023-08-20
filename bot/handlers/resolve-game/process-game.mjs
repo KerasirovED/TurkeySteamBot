@@ -17,7 +17,7 @@ export default async function (message, appid) {
             .then(games => games.find(game => game.appid === appid))
             .then(async game => {
                 appendNameWithLink(game)
-                await message.editTextMd2(`Похоже, Steam нас обманул! Игры ${game.nameWithLink} не существует\\. 🫠`)
+                await message.editTextMd2(`Похоже, Steam нас обманул\\! Игры ${game.nameWithLink} не существует\\. 🫠`)
         }, handleError)
         .catch(handleError)
 
