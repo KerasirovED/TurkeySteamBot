@@ -7,7 +7,8 @@ const Region = Object.freeze({
         Currency: {
             Name: 'Евро',
             Iso: 'EUR',
-            Symbol: '€'
+            Symbol: '€',
+            ApiKey: 'eur'
         }
     },
     Turkey: {
@@ -17,7 +18,8 @@ const Region = Object.freeze({
         Currency: {
             Name: 'Турецкая лира',
             Iso: 'TRY',
-            Symbol: '₺'
+            Symbol: '₺',
+            ApiKey: 'try'
         }
     },
     Russia: {
@@ -27,7 +29,8 @@ const Region = Object.freeze({
         Currency: {
             Name: 'Российский Рубль',
             Iso: 'RUB',
-            Symbol: '₽'
+            Symbol: '₽',
+            ApiKey: 'rub'
         }
     },
     Kazakhstan: {
@@ -37,7 +40,8 @@ const Region = Object.freeze({
         Currency: {
             Name: 'Казахский Тенге',
             Iso: 'KZT',
-            Symbol: '₸'
+            Symbol: '₸',
+            ApiKey: 'kzt'
         }
     }
 })

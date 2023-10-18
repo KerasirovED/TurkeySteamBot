@@ -37,7 +37,7 @@ export default class PriceInRubles extends Price {
             return
         }
 
-        const uri = `https://api.exchangerate.host/latest?base=${this._region.Currency.Iso}&symbols=RUB`
+        const uri = `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/${this._region.Currency.ApiKey}.json`
 
         console.debug(`URI: '${uri}'`)
 
@@ -49,7 +49,7 @@ export default class PriceInRubles extends Price {
 
         await fetch(uri)
             .then(response => response.json(), processFetchError)
-            .then(data => this._rubleRate = data.rates.RUB)
+            .then(data => this._rubleRate = data[this._region.Currency.ApiKey].rub)
             .catch(processFetchError)
     }
 }
