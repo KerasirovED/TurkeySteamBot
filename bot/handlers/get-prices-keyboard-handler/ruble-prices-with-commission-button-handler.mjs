@@ -9,6 +9,7 @@ export default async function rublePricesWithCommissionButtonHandler(message) {
         new PriceInRubles(appid, Region.Europe),
         new PriceInRublesWithCommission(appid, Region.Turkey, 0.092),
         new PriceInRubles(appid, Region.Kazakhstan),
-        new PriceInRublesWithCommission(appid, Region.Russia, 0.17)
+        new PriceInRublesWithCommission(appid, Region.Russia, 0.17),
+        new PriceInRubles(appid, Region.USA)
     ])
 }

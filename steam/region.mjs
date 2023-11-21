@@ -11,6 +11,17 @@ const Region = Object.freeze({
             ApiKey: 'eur'
         }
     },
+    USA: {
+        Name: 'США',
+        SteamCode: 'us',
+        Flag: '🇺🇸',
+        Currency: {
+            Name: 'Доллар',
+            Iso: 'USD',
+            Symbol: '$',
+            ApiKey: 'usd'
+        }
+    },
     Turkey: {
         Name: 'Турция',
         SteamCode: 'tr',
@@ -45,5 +56,7 @@ const Region = Object.freeze({
         }
     }
 })
+
+export const RegionArray = Object.values(Region) 
 
 export default Region

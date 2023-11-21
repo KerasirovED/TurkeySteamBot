@@ -1,13 +1,11 @@
 
 import replyPrices from "./reply-prices.mjs"
 import Price from "../../../steam/Price.mjs"
-import Region from "../../../steam/region.mjs"
+import { RegionArray } from "../../../steam/region.mjs"
 
 export default async function localPricesButtonHandler(message) {
-    await replyPrices(message, appid => [
-        new Price(appid, Region.Europe),
-        new Price(appid, Region.Turkey),
-        new Price(appid, Region.Kazakhstan),
-        new Price(appid, Region.Russia)
-    ])
+    await replyPrices(
+        message, 
+        appid => RegionArray.map(region => new Price(appid, region))
+    )
 }
