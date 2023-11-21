@@ -16,10 +16,10 @@ const Region = Object.freeze({
         SteamCode: 'tr',
         Flag: '🇹🇷',
         Currency: {
-            Name: 'Турецкая лира',
-            Iso: 'TRY',
-            Symbol: '₺',
-            ApiKey: 'try'
+            Name: 'Доллар',
+            Iso: 'USD',
+            Symbol: '$',
+            ApiKey: 'usd'
         }
     },
     Russia: {
