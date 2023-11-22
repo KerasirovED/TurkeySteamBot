@@ -7,9 +7,9 @@ import Region from "../../../steam/region.mjs"
 export default async function rublePricesWithCommissionButtonHandler(message) {
     await replyPrices(message, appid => [
         new PriceInRubles(appid, Region.Europe),
+        new PriceInRubles(appid, Region.USA),
         new PriceInRublesWithCommission(appid, Region.Turkey, 0.092),
         new PriceInRubles(appid, Region.Kazakhstan),
-        new PriceInRublesWithCommission(appid, Region.Russia, 0.17),
-        new PriceInRubles(appid, Region.USA)
+        new PriceInRublesWithCommission(appid, Region.Russia, 0.17)
     ])
 }
